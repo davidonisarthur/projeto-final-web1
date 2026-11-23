@@ -4,12 +4,16 @@ import QuoteForm from './components/QuoteForm.jsx';
 import QuoteResult from './components/QuoteResult.jsx';
 import MarketSummary from './components/MarketSummary.jsx';
 import Instructions from './components/Instructions.jsx';
+import ResultActions from './components/ResultActions.jsx';
+import { usePreferences } from './hooks/usePreferences.js';
+import { resultText } from './lib/result.js';
 import { useQuotes } from './hooks/useQuotes.js';
 import { COINS, parseAmount } from './lib/core.js';
 
 export default function App() {
-  const [coinId, setCoinId] = useState('bitcoin');
-  const [currency, setCurrency] = useState('brl');
+  const { coin: coinId, currency, saved, select } = usePreferences();
+  const setCoinId = value => select('coin', value);
+  const setCurrency = value => select('currency', value);
   const [amountText, setAmountText] = useState('1');
   const { quotes, loading, error, refresh, now, remaining } = useQuotes();
   const coin = COINS.find(item => item.id === coinId);
@@ -27,6 +31,8 @@ export default function App() {
         <p id="status" role="status">{loading ? 'Consultando cotações na CoinGecko…' : error ? `${error}${Object.keys(quotes).length ? ' Mantivemos as cotações anteriores; confira o horário da fonte.' : ''}` : 'Consulta concluída. Troque a moeda ou a quantidade para converter sem uma nova consulta.'}</p>
         {partial && <p className="error">A fonte retornou apenas parte das moedas. Valores ausentes estão indicados como indisponíveis.</p>}
         <QuoteResult coin={coin} currency={currency} amount={amount} quote={quote} loading={loading} stale={stale} />
+        <ResultActions text={resultText({ amount, coin, currency, quote, stale })} loading={loading} />
+        <p id="preference-status" className="muted">{saved ? 'Moeda e unidade salvas somente neste navegador.' : 'O navegador não permitiu salvar suas preferências. A consulta continua funcionando.'}</p>
         <p className="source">Dados fornecidos por <a href="https://www.coingecko.com/">CoinGecko</a>. Valores indicativos, sem taxas de negociação.</p>
       </section>
       <MarketSummary quotes={quotes} currency={currency} selectedCoin={coinId} onSelect={setCoinId} />
