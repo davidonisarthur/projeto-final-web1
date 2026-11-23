@@ -1,11 +1,14 @@
 import { COINS, normalizeQuotes } from '../lib/core.js';
 
-export async function fetchQuotes(fetcher = fetch) {
+export async function fetchQuotes(fetcher = fetch, { signal } = {}) {
   const query = new URLSearchParams({
     ids: COINS.map(coin => coin.id).join(','), vs_currencies: 'brl,usd',
     include_24hr_change: 'true', include_last_updated_at: 'true',
   });
   const controller = new AbortController();
+  const abort = () => controller.abort();
+  signal?.addEventListener('abort', abort, { once: true });
+  if (signal?.aborted) controller.abort();
   const timeout = setTimeout(() => controller.abort(), 12000);
   try {
     const response = await fetcher(`https://api.coingecko.com/api/v3/simple/price?${query}`, {
@@ -15,11 +18,13 @@ export async function fetchQuotes(fetcher = fetch) {
     if (!response.ok) throw new Error('A fonte está indisponível no momento. Tente novamente mais tarde.');
     return normalizeQuotes(await response.json());
   } catch (error) {
+    if (signal?.aborted) throw error;
     if (error.name === 'AbortError') throw new Error('A consulta demorou demais. Confira sua conexão e tente novamente.');
     if (error instanceof TypeError) throw new Error('Não foi possível acessar a fonte. Confira sua conexão e tente novamente.');
     if (error instanceof SyntaxError) throw new Error('A fonte retornou uma resposta inválida. Tente novamente mais tarde.');
     throw error;
   } finally {
     clearTimeout(timeout);
+    signal?.removeEventListener('abort', abort);
   }
 }
